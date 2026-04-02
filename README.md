@@ -4,13 +4,13 @@ The project is still in-progress.
 
 ## Overview
 
-This MVP includes two primary protocols:
+The project currently includes two primary protocols:
 
 - **Transfer Protocol (`/p2pfs/get/1.0.0`)**: Stream-based protocol handling file downloads.
 
 - **Index Protocol (`/p2pfs/index/1.0.0`)**: Stream-based request protocol allowing peers to manually verify what files a target peer is serving.
 
-It uses **GossipSub** (`p2pfs/announce/1.0.0`) to run periodic broadcasts announcing local files. Each file is identified by a CID derived from its raw bytes, while filenames are kept as metadata for display and local saves. Peers ingest these announcements to maintain an ephemeral `providers` map in-memory.
+It uses libp2p's **Kademlia DHT** for content routing. Each file is identified by a CID derived from its raw bytes. Nodes periodically scan their local export directory and register themselves as providers for any newly discovered CIDs, letting other peers locate content on demand.
 
 ## Getting Started
 
@@ -41,9 +41,9 @@ To bootstrap a new daemon, pass a comma-separated list of known `/ip4/.../p2p/<P
 
 ### CLI Commands
 
-Once the daemon is up and a network has been established over GossipSub, query and fetch using the CLI:
+Once the daemon is up and connected to the DHT through its bootstrap peers, query and fetch using the CLI:
 
-- `whohas`: Ask local daemon's provider index who has a specific CID.
+- `whohas`: Ask the local daemon to query the DHT for peers that provide a specific CID.
 ```bash
 ./p2pfs whohas <CID>
 ```
@@ -60,7 +60,7 @@ Once the daemon is up and a network has been established over GossipSub, query a
 ./p2pfs list --peer <REMOTE_MULTIADDR>
 ```
 
-## MVP Demo
+## Demo
 
 To run the demo (which spins up Peer A, Peer B, and Peer C, and generates a test `foo.txt` file):
 ```bash

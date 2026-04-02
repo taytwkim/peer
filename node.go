@@ -11,16 +11,10 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 )
-
-type PeerProvider struct {
-	Info     peer.AddrInfo
-	LastSeen time.Time
-}
 
 type LocalFileRecord struct {
 	CID      string
@@ -29,27 +23,19 @@ type LocalFileRecord struct {
 	Size     int64
 }
 
-type RemoteFileRecord struct {
-	CID      string
-	Filename string
-	Size     int64
-	Info     peer.AddrInfo
-	LastSeen time.Time
-}
-
 // Node represents the local p2pfs daemon
 type Node struct {
 	ctx            context.Context // ctx and cancel are used to manage the lifecycle of daemons.
 	cancel         context.CancelFunc
-	Host           host.Host                               // core engine provided by libp2p, representing your presence on the network.
-	ExportDir      string                                  // local path to the folder where shared files live.
-	RpcSocket      string                                  // path to the local Unix Domain Socket used for CLI commands.
-	Providers      map[string]map[peer.ID]RemoteFileRecord // CID -> Peer ID -> remote file metadata.
-	providersLock  sync.RWMutex                            // prevents race conditions when accessing the Providers map. maps are not thread-safe in Go.
-	LocalFiles     map[string]LocalFileRecord              // cache of local files, keyed by CID so content is the identity.
-	localFilesLock sync.RWMutex                            // prevents race conditions when accessing the LocalFiles map.
-	PubSub         *pubsub.PubSub                          // GossipSub for announcing and discovering files.
-	rpcListener    net.Listener                            // rpcListener holds the open Unix Domain Socket listener for CLI clients.
+	Host           host.Host                  // core engine provided by libp2p, representing your presence on the network.
+	ExportDir      string                     // local path to the folder where shared files live.
+	RpcSocket      string                     // path to the local Unix Domain Socket used for CLI commands.
+	LocalFiles     map[string]LocalFileRecord // cache of local files, keyed by CID so content is the identity.
+	localFilesLock sync.RWMutex               // prevents race conditions when accessing the LocalFiles map.
+	DHT            DHTNode                    // Kademlia DHT used for provider registration and lookup.
+	ProvidedCIDs   map[string]struct{}        // local CIDs already announced into the DHT (we don't want to announce again).
+	providedLock   sync.Mutex
+	rpcListener    net.Listener // rpcListener holds the open Unix Domain Socket listener for CLI clients.
 }
 
 // NewNode initializes a new libp2p node, connects to bootstrap nodes, and starts background tasks
@@ -66,13 +52,13 @@ func NewNode(listenAddr, exportDir, rpcSocket string, bootstrapAddrs []string) (
 	}
 
 	n := &Node{
-		ctx:        ctx,
-		cancel:     cancel,
-		Host:       h,
-		ExportDir:  exportDir,
-		RpcSocket:  rpcSocket,
-		Providers:  make(map[string]map[peer.ID]RemoteFileRecord),
-		LocalFiles: make(map[string]LocalFileRecord),
+		ctx:          ctx,
+		cancel:       cancel,
+		Host:         h,
+		ExportDir:    exportDir,
+		RpcSocket:    rpcSocket,
+		LocalFiles:   make(map[string]LocalFileRecord),
+		ProvidedCIDs: make(map[string]struct{}),
 	}
 
 	log.Printf("Host created. Our Peer ID: %s", h.ID().String())
@@ -80,23 +66,26 @@ func NewNode(listenAddr, exportDir, rpcSocket string, bootstrapAddrs []string) (
 		log.Printf("Listening on: %s/p2p/%s", addr, h.ID())
 	}
 
-	// 2. Setup PubSub
-	ps, err := pubsub.NewGossipSub(ctx, h)
+	// 2. Setup DHT
+	dhtNode, err := NewDHTNode(ctx, h, bootstrapAddrs)
 	if err != nil {
 		h.Close()
 		cancel()
-		return nil, fmt.Errorf("failed to create GossipSub: %w", err)
+		return nil, fmt.Errorf("failed to create DHT: %w", err)
 	}
-	// ps is the PubSub instance that enables each node to join, publish to,
-	// and subscribe to the topic
-	// the actual subscription happens in discovery.go
-	n.PubSub = ps
+	n.DHT = dhtNode
 
 	// 3. Connect to bootstrap peers
 	n.connectBootstrappers(bootstrapAddrs)
 
+	if err := n.DHT.Bootstrap(ctx); err != nil {
+		h.Close()
+		cancel()
+		return nil, fmt.Errorf("failed to bootstrap DHT: %w", err)
+	}
+
 	// 4. Register RPC and background tasks
-	// RPC server is the endpoint nodes expose
+	// "RPC server" is the endpoint that nodes expose
 	// to accept CLI-issued commands
 	if err := n.startRPCServer(); err != nil {
 		h.Close()
@@ -104,15 +93,10 @@ func NewNode(listenAddr, exportDir, rpcSocket string, bootstrapAddrs []string) (
 		return nil, err
 	}
 
-	// Start scanning local directory periodically
+	// 5. Start scanning local directory periodically
 	go n.scanLocalFiles()
 
-	// Start Discovery/Announcements
-	if err := n.setupDiscovery(); err != nil {
-		log.Printf("Warning: setupDiscovery failed, pubsub may not work: %v", err)
-	}
-
-	// Register protocols
+	// 6. Register protocols
 	n.setupTransferProtocol()
 	n.setupIndexProtocol()
 
@@ -123,6 +107,9 @@ func (n *Node) Close() error {
 	n.cancel()
 	if n.rpcListener != nil {
 		n.rpcListener.Close()
+	}
+	if n.DHT != nil {
+		n.DHT.Close()
 	}
 	return n.Host.Close()
 }
@@ -152,8 +139,8 @@ func (n *Node) connectBootstrappers(addrs []string) {
 
 		wg.Add(1)
 
-		// this part (the go routine) is non-blocking, so that one failed attempt
-		// does not stall. so we will attempt to connect to all bootstrap nodes.
+		// This part (the go routine) is non-blocking, so that one failed attempt
+		// does not stall. So we will attempt to connect to all bootstrap nodes.
 		go func(info peer.AddrInfo) {
 			defer wg.Done()
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -169,9 +156,9 @@ func (n *Node) connectBootstrappers(addrs []string) {
 	wg.Wait()
 }
 
-// wrapper to call updateLocalFiles periodically
+// Wrapper to call updateLocalFiles periodically
 func (n *Node) scanLocalFiles() {
-	// we poll because we want to check whether the user has uploaded a new file in export_dir
+	// We poll because we want to check whether the user has uploaded a new file in export_dir
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
@@ -184,8 +171,6 @@ func (n *Node) scanLocalFiles() {
 			return
 		case <-ticker.C:
 			n.updateLocalFiles()
-			// Also GC providers
-			n.evictExpiredProviders()
 		}
 	}
 }
@@ -225,23 +210,33 @@ func (n *Node) updateLocalFiles() {
 	n.localFilesLock.Lock()
 	n.LocalFiles = newFiles
 	n.localFilesLock.Unlock()
+
+	n.provideNewCIDs(newFiles)
 }
 
-func (n *Node) evictExpiredProviders() {
-	now := time.Now()
-	ttl := 120 * time.Second // 2 min TTL
+func (n *Node) provideNewCIDs(files map[string]LocalFileRecord) {
+	n.providedLock.Lock()
+	defer n.providedLock.Unlock()
 
-	n.providersLock.Lock()
-	defer n.providersLock.Unlock()
-
-	for file, peers := range n.Providers {
-		for pid, pprovider := range peers {
-			if now.Sub(pprovider.LastSeen) > ttl {
-				delete(peers, pid)
-			}
+	current := make(map[string]struct{}, len(files))
+	for cidStr := range files {
+		current[cidStr] = struct{}{}
+		if _, alreadyProvided := n.ProvidedCIDs[cidStr]; alreadyProvided {
+			continue
 		}
-		if len(peers) == 0 {
-			delete(n.Providers, file)
+
+		if err := n.DHT.Provide(n.ctx, cidStr, true); err != nil {
+			log.Printf("Failed to provide CID %s: %v", cidStr, err)
+			continue
+		}
+
+		n.ProvidedCIDs[cidStr] = struct{}{}
+		log.Printf("Provided CID %s to DHT", cidStr)
+	}
+
+	for cidStr := range n.ProvidedCIDs {
+		if _, stillPresent := current[cidStr]; !stillPresent {
+			delete(n.ProvidedCIDs, cidStr)
 		}
 	}
 }

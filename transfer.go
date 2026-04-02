@@ -49,22 +49,16 @@ func (n *Node) doFetch(cid string, targetPeerID string) error {
 			return fmt.Errorf("invalid peer id: %v", err)
 		}
 	} else {
-		// Find a peer from our providers index using CID as the content identity.
-		n.providersLock.RLock()
-		peers, ok := n.Providers[cid]
-		n.providersLock.RUnlock()
-
-		if !ok || len(peers) == 0 {
+		providers, err := n.DHT.FindProviders(context.Background(), cid, 20)
+		if err != nil {
+			return fmt.Errorf("failed to query DHT providers: %w", err)
+		}
+		if len(providers) == 0 {
 			return errors.New("no providers known for this CID. Use 'whohas' first")
 		}
 
-		// Just pick the first one for MVP
-		for p, prov := range peers {
-			target = p
-			providerInfo = prov.Info
-			remoteFilename = prov.Filename
-			break
-		}
+		target = providers[0].ID
+		providerInfo = providers[0]
 	}
 
 	log.Printf("Fetching %s from %s", cid, target)

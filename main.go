@@ -138,7 +138,7 @@ func runWhohas(args []string) {
 	} else {
 		fmt.Printf("Providers for %s:\n", cid)
 		for _, p := range providers {
-			fmt.Printf("  %s  filename=%s  size=%d\n", p.PeerID, p.Filename, p.Size)
+			fmt.Printf("  %s\n", p.PeerID)
 		}
 	}
 }

@@ -20,7 +20,7 @@ clean() {
 # Function to setup and start the demo
 setup() {
     echo -e "${BLUE}Building p2pfs...${NC}"
-    go build -o p2pfs
+    GOCACHE=/tmp/go-build go build -o p2pfs
 
     echo -e "${BLUE}Setting up directories...${NC}"
     mkdir -p peerA_export peerB_export peerC_export
@@ -43,7 +43,7 @@ setup() {
     echo -e "${GREEN}Starting Peer C (Leech connecting to B)...${NC}"
     ./p2pfs daemon -listen /ip4/127.0.0.1/tcp/4003 -export_dir ./peerC_export -rpc /tmp/p2pfsC.sock -bootstrap "$B_ADDR" > peerC.log 2>&1 &
     
-    echo -e "\n${BLUE}All peers started! Wait a few seconds for GossipSub mesh to build (~5-10s)...${NC}"
+    echo -e "\n${BLUE}All peers started! Wait a few seconds for the DHT routing tables to warm up (~5-10s)...${NC}"
     echo -e "You can now run commands against Peer C to inspect files, find the CID for foo.txt, and fetch it:"
     echo -e "  ./p2pfs list   --rpc /tmp/p2pfsC.sock --peer <REMOTE_MULTIADDR>"
     echo -e "  ./p2pfs whohas --rpc /tmp/p2pfsC.sock <CID>"

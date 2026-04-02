@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net"
 	"net/http"
@@ -9,7 +10,7 @@ import (
 )
 
 /*
- * rpc.go defines the glue between CLI and the local daemon.
+ * rpc.go defines the RPC glue between CLI and the local daemon.
  *
  * The workflow is:
  * 1. A CLI command in main.go creates an RPC Client and issues a request.
@@ -99,23 +100,19 @@ func (c *Client) List(targetAddr string) ([]IndexFile, error) {
 // commands from the CLI and calls actual logic like doFetch and doList.
 // ============================================================================
 
-// P2PFSAPI is the daemon-side RPC receiver.
-// When the CLI sends a command like Fetch or List, the local daemon receives it
-// here and then calls into the Node to do the real work.
 type P2PFSAPI struct {
 	node *Node
 }
 
 func (api *P2PFSAPI) Whohas(args *WhohasArgs, reply *WhohasReply) error {
-	api.node.providersLock.RLock()
-	defer api.node.providersLock.RUnlock()
+	peers, err := api.node.DHT.FindProviders(context.Background(), args.CID, 20)
+	if err != nil {
+		return err
+	}
 
-	peers := api.node.Providers[args.CID]
-	for pid, record := range peers {
+	for _, info := range peers {
 		reply.Providers = append(reply.Providers, ProviderInfo{
-			PeerID:   pid.String(),
-			Filename: record.Filename,
-			Size:     record.Size,
+			PeerID: info.ID.String(),
 		})
 	}
 	return nil

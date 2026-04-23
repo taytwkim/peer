@@ -13,13 +13,13 @@ To run the local RPC demo (which spins up Peer A, Peer B, and Peer C, and genera
 Watch the terminal as it starts the daemons. Once it completes, first list a remote peer to see the manifest CID for `foo.txt`, then use that manifest CID from Peer C.
 
 ```bash
-./p2pfs list   --rpc /tmp/p2pfsC.sock --peer <REMOTE_MULTIADDR>
-./p2pfs whohas --rpc /tmp/p2pfsC.sock <MANIFEST_CID>
-./p2pfs fetch  --rpc /tmp/p2pfsC.sock <MANIFEST_CID>
+./tinytorrent list   --rpc /tmp/tinytorrentC.sock --peer <REMOTE_MULTIADDR>
+./tinytorrent whohas --rpc /tmp/tinytorrentC.sock <MANIFEST_CID>
+./tinytorrent fetch  --rpc /tmp/tinytorrentC.sock <MANIFEST_CID>
 cat peerC_export/foo.txt
 ```
 
-To clean up the spawned log files, temp socket files, `export` directories, and abruptly kill all `p2pfs` processes:
+To clean up the spawned log files, temp socket files, `export` directories, and abruptly kill all `tinytorrent` processes:
 
 ```bash
 ./demo/rpc_demo.sh clean
@@ -33,9 +33,9 @@ Terraform files for a simple 3-VM GCP demo environment live under `demo/gcp`.
 
 The Terraform stack creates:
 
-- `p2pfs-bootstrap`
-- `p2pfs-peer-b`
-- `p2pfs-peer-c`
+- `tinytorrent-bootstrap`
+- `tinytorrent-peer-b`
+- `tinytorrent-peer-c`
 
 along with a firewall rule that opens:
 
@@ -48,7 +48,7 @@ The Terraform stack is minimal:
 - it creates the network and firewall rules
 - it does not install Go
 - it does not clone the repo
-- it does not build `p2pfs`
+- it does not build `tinytorrent`
 
 **Getting Started**
 1. `cd demo/gcp`
@@ -69,7 +69,7 @@ Don't forget to `terraform destroy` when you are done.
 
 ```shell
 mkdir -p ~/my_files
-./p2pfs shell --listen /ip4/0.0.0.0/tcp/4001 --export_dir ~/my_files --name peerA
+./tinytorrent shell --listen /ip4/0.0.0.0/tcp/4001 --export_dir ~/my_files --name peerA
 
 peerA> id
 ```
@@ -78,13 +78,13 @@ peerA> id
 
 ```shell
 mkdir -p ~/my_files
-./p2pfs shell --listen /ip4/0.0.0.0/tcp/4002 --export_dir ~/my_files --name peerB --bootstrap /ip4/<A_PUBLIC_IP>/tcp/4001/p2p/<A_PEER_ID>
+./tinytorrent shell --listen /ip4/0.0.0.0/tcp/4002 --export_dir ~/my_files --name peerB --bootstrap /ip4/<A_PUBLIC_IP>/tcp/4001/p2p/<A_PEER_ID>
 
 peerB> id
 ```
 
 ```shell
-./p2pfs shell --listen /ip4/0.0.0.0/tcp/4003 --export_dir ~/my_files --name peerC --bootstrap /ip4/<A_PUBLIC_IP>/tcp/4001/p2p/<A_PEER_ID>
+./tinytorrent shell --listen /ip4/0.0.0.0/tcp/4003 --export_dir ~/my_files --name peerC --bootstrap /ip4/<A_PUBLIC_IP>/tcp/4001/p2p/<A_PEER_ID>
 
 peerC> id
 peerC> alias peerB /ip4/<B_PUBLIC_IP>/tcp/4002/p2p/<B_PEER_ID>

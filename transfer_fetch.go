@@ -139,7 +139,7 @@ func (n *Node) fetchFile(r io.Reader, manifestCID string, resp TransferResponse,
 		return fmt.Errorf("unsupported manifest version %d", manifest.Version)
 	}
 
-	if err := ensureP2PFSDirs(n.ExportDir); err != nil {
+	if err := ensureTinyTorrentDirs(n.ExportDir); err != nil {
 		return err
 	}
 	manifestPath := manifestStoragePath(n.ExportDir, manifestCID)

@@ -15,7 +15,7 @@ import (
 // This file contains the inbound transfer protocol: register the stream
 // handler, answer GET requests, and handle the small response framing helpers.
 
-const transferProtocol = "/p2pfs/get/1.0.0"
+const transferProtocol = "/tinytorrent/get/1.0.0"
 
 type TransferRequest struct {
 	CID string `json:"cid"`

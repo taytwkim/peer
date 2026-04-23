@@ -43,7 +43,7 @@ import (
  *
  * 		exportDir/
  *   		<complete files>
- *   	.p2pfs/
+ *   	.tinytorrent/
  *     		manifests/
  *       		<manifestCID>    cached manifest JSON files
  *     		pieces/
@@ -255,7 +255,7 @@ func (n *Node) scanLocalObjects() {
 }
 
 func (n *Node) updateLocalObjects() {
-	if err := ensureP2PFSDirs(n.ExportDir); err != nil {
+	if err := ensureTinyTorrentDirs(n.ExportDir); err != nil {
 		log.Printf("Error creating internal storage dirs: %v", err)
 		return
 	}
@@ -268,7 +268,7 @@ func (n *Node) updateLocalObjects() {
 
 	completeFiles := make(map[string]CompleteFile)
 	for _, f := range files {
-		if f.IsDir() || f.Name() == ".p2pfs" || strings.HasSuffix(f.Name(), ".downloading") {
+		if f.IsDir() || f.Name() == ".tinytorrent" || strings.HasSuffix(f.Name(), ".downloading") {
 			continue
 		}
 		path := filepath.Join(n.ExportDir, f.Name())
@@ -434,22 +434,22 @@ func (n *Node) clearDownloadState(manifestCID string) {
 	n.stateLock.Unlock()
 }
 
-// helper that creates .p2pfs/manifests and .p2pfs/pieces
-func ensureP2PFSDirs(exportDir string) error {
-	if err := os.MkdirAll(filepath.Join(exportDir, ".p2pfs", "manifests"), 0755); err != nil {
+// helper that creates .tinytorrent/manifests and .tinytorrent/pieces
+func ensureTinyTorrentDirs(exportDir string) error {
+	if err := os.MkdirAll(filepath.Join(exportDir, ".tinytorrent", "manifests"), 0755); err != nil {
 		return err
 	}
-	return os.MkdirAll(filepath.Join(exportDir, ".p2pfs", "pieces"), 0755)
+	return os.MkdirAll(filepath.Join(exportDir, ".tinytorrent", "pieces"), 0755)
 }
 
 // helper that returns the filepath where a manifest JSON file should be stored.
 func manifestStoragePath(exportDir, manifestCID string) string {
-	return filepath.Join(exportDir, ".p2pfs", "manifests", manifestCID+".json")
+	return filepath.Join(exportDir, ".tinytorrent", "manifests", manifestCID+".json")
 }
 
 // returns the filepath where a downloaded piece should be cached.
 func pieceStoragePath(exportDir, pieceCID string) string {
-	return filepath.Join(exportDir, ".p2pfs", "pieces", pieceCID)
+	return filepath.Join(exportDir, ".tinytorrent", "pieces", pieceCID)
 }
 
 // announces manifest CIDs to the DHT

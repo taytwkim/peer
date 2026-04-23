@@ -77,21 +77,21 @@ func NewClient(rpcSocket string) *Client {
 func (c *Client) Whohas(cid string) ([]ProviderInfo, error) {
 	args := &WhohasArgs{CID: cid}
 	var reply WhohasReply
-	err := c.rpcClient.Call("P2PFSAPI.Whohas", args, &reply)
+	err := c.rpcClient.Call("TinyTorrentAPI.Whohas", args, &reply)
 	return reply.Providers, err
 }
 
 func (c *Client) Fetch(cid string) (FetchReply, error) {
 	args := &FetchArgs{CID: cid}
 	var reply FetchReply
-	err := c.rpcClient.Call("P2PFSAPI.Fetch", args, &reply)
+	err := c.rpcClient.Call("TinyTorrentAPI.Fetch", args, &reply)
 	return reply, err
 }
 
 func (c *Client) List(targetAddr string) ([]IndexFile, error) {
 	args := &ListArgs{TargetAddr: targetAddr}
 	var reply ListReply
-	err := c.rpcClient.Call("P2PFSAPI.List", args, &reply)
+	err := c.rpcClient.Call("TinyTorrentAPI.List", args, &reply)
 	return reply.Files, err
 }
 
@@ -101,11 +101,11 @@ func (c *Client) List(targetAddr string) ([]IndexFile, error) {
 // commands from the CLI and calls actual logic like doFetch and doList.
 // ============================================================================
 
-type P2PFSAPI struct {
+type TinyTorrentAPI struct {
 	node *Node
 }
 
-func (api *P2PFSAPI) Whohas(args *WhohasArgs, reply *WhohasReply) error {
+func (api *TinyTorrentAPI) Whohas(args *WhohasArgs, reply *WhohasReply) error {
 	peers, err := api.node.DHT.FindProviders(context.Background(), args.CID, 20)
 	if err != nil {
 		return err
@@ -119,7 +119,7 @@ func (api *P2PFSAPI) Whohas(args *WhohasArgs, reply *WhohasReply) error {
 	return nil
 }
 
-func (api *P2PFSAPI) Fetch(args *FetchArgs, reply *FetchReply) error {
+func (api *TinyTorrentAPI) Fetch(args *FetchArgs, reply *FetchReply) error {
 	status := func(format string, args ...any) {
 		reply.Events = append(reply.Events, fmt.Sprintf(format, args...))
 	}
@@ -130,7 +130,7 @@ func (api *P2PFSAPI) Fetch(args *FetchArgs, reply *FetchReply) error {
 	return err
 }
 
-func (api *P2PFSAPI) List(args *ListArgs, reply *ListReply) error {
+func (api *TinyTorrentAPI) List(args *ListArgs, reply *ListReply) error {
 	files, err := api.node.doList(args.TargetAddr)
 	if err == nil {
 		reply.Files = files
@@ -145,7 +145,7 @@ func (api *P2PFSAPI) List(args *ListArgs, reply *ListReply) error {
 // ============================================================================
 
 func (n *Node) startRPCServer() error {
-	api := &P2PFSAPI{node: n}
+	api := &TinyTorrentAPI{node: n}
 	rpcServer := rpc.NewServer()
 	rpcServer.Register(api)
 

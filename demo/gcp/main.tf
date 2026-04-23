@@ -6,22 +6,22 @@ provider "google" {
 
 locals {
   instance_names = [
-    "p2pfs-bootstrap",
-    "p2pfs-peer-b",
-    "p2pfs-peer-c",
+    "tinytorrent-bootstrap",
+    "tinytorrent-peer-b",
+    "tinytorrent-peer-c",
   ]
 
-  common_tags = ["p2pfs-demo"]
+  common_tags = ["tinytorrent-demo"]
 }
 
-resource "google_compute_network" "p2pfs_demo" {
-  name                    = "p2pfs-demo-network"
+resource "google_compute_network" "tinytorrent_demo" {
+  name                    = "tinytorrent-demo-network"
   auto_create_subnetworks = true
 }
 
-resource "google_compute_firewall" "p2pfs_demo_ingress" {
-  name    = "p2pfs-demo-ingress"
-  network = google_compute_network.p2pfs_demo.name
+resource "google_compute_firewall" "tinytorrent_demo_ingress" {
+  name    = "tinytorrent-demo-ingress"
+  network = google_compute_network.tinytorrent_demo.name
 
   allow {
     protocol = "tcp"
@@ -32,7 +32,7 @@ resource "google_compute_firewall" "p2pfs_demo_ingress" {
   target_tags   = local.common_tags
 }
 
-resource "google_compute_instance" "p2pfs_demo" {
+resource "google_compute_instance" "tinytorrent_demo" {
   for_each     = toset(local.instance_names)
   name         = each.value
   machine_type = var.machine_type
@@ -48,7 +48,7 @@ resource "google_compute_instance" "p2pfs_demo" {
   }
 
   network_interface {
-    network = google_compute_network.p2pfs_demo.id
+    network = google_compute_network.tinytorrent_demo.id
 
     access_config {}
   }

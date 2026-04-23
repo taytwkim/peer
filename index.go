@@ -22,7 +22,7 @@ import (
  * 		- AVAILABILITY reports which pieces a peer has for a manifest CID.
  */
 
-const indexProtocol = "/p2pfs/index/1.0.0"
+const indexProtocol = "/tinytorrent/index/1.0.0"
 
 type IndexRequest struct {
 	Op          string `json:"op"`

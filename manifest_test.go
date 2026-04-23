@@ -262,7 +262,7 @@ func TestPartialDownloadSurvivesLocalObjectRescan(t *testing.T) {
 	}
 
 	destDir := t.TempDir()
-	if err := ensureP2PFSDirs(destDir); err != nil {
+	if err := ensureTinyTorrentDirs(destDir); err != nil {
 		t.Fatal(err)
 	}
 	manifestPath := manifestStoragePath(destDir, manifestCID)
@@ -324,7 +324,7 @@ func TestFinishPieceFetchReconstructsFromCachedPieces(t *testing.T) {
 
 	// Create a destination directory where the “downloading peer” lives
 	destDir := t.TempDir()
-	if err := ensureP2PFSDirs(destDir); err != nil {
+	if err := ensureTinyTorrentDirs(destDir); err != nil {
 		t.Fatal(err)
 	}
 

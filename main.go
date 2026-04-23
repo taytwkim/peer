@@ -51,10 +51,10 @@ func main() {
 }
 
 func printUsage() {
-	fmt.Println("Usage: p2pfs <command> [options]")
+	fmt.Println("Usage: tinytorrent <command> [options]")
 	fmt.Println("Commands:")
-	fmt.Println("  daemon  Run the p2pfs daemon")
-	fmt.Println("  shell   Run an interactive p2pfs shell")
+	fmt.Println("  daemon  Run the tinytorrent daemon")
+	fmt.Println("  shell   Run an interactive tinytorrent shell")
 	fmt.Println("  whohas  Find peers participating in a manifest swarm")
 	fmt.Println("  fetch   Download a file by manifest CID")
 	fmt.Println("  list    List files served by a peer with filenames and CIDs")
@@ -66,7 +66,7 @@ func runDaemon(args []string) {
 	listenAddr := fs.String("listen", "/ip4/0.0.0.0/tcp/4001", "Listen multiaddr") // node listens at IP:port
 	exportDir := fs.String("export_dir", "./files_to_serve", "Directory to serve files from")
 	bootstrapOpt := fs.String("bootstrap", "", "Comma-separated list of bootstrap multiaddrs") // node that can be used to bootstrap the starting node
-	rpcOpt := fs.String("rpc", "/tmp/p2pfs.sock", "RPC Unix socket path")                      // rpc socket to issue commands to the running daemon
+	rpcOpt := fs.String("rpc", "/tmp/tinytorrent.sock", "RPC Unix socket path")                // rpc socket to issue commands to the running daemon
 
 	fs.Parse(args)
 
@@ -116,11 +116,11 @@ func runDaemon(args []string) {
 // node X broadcasts whohas
 func runWhohas(args []string) {
 	fs := flag.NewFlagSet("whohas", flag.ExitOnError)
-	rpcOpt := fs.String("rpc", "/tmp/p2pfs.sock", "RPC Unix socket path")
+	rpcOpt := fs.String("rpc", "/tmp/tinytorrent.sock", "RPC Unix socket path")
 	fs.Parse(args)
 
 	if fs.NArg() < 1 {
-		fmt.Println("Usage: p2pfs whohas [--rpc <socket>] <manifest-cid>")
+		fmt.Println("Usage: tinytorrent whohas [--rpc <socket>] <manifest-cid>")
 		os.Exit(1)
 	}
 
@@ -147,11 +147,11 @@ func runWhohas(args []string) {
 // download file from the manifest swarm
 func runFetch(args []string) {
 	fs := flag.NewFlagSet("fetch", flag.ExitOnError)
-	rpcOpt := fs.String("rpc", "/tmp/p2pfs.sock", "RPC Unix socket path")
+	rpcOpt := fs.String("rpc", "/tmp/tinytorrent.sock", "RPC Unix socket path")
 	fs.Parse(args)
 
 	if fs.NArg() < 1 {
-		fmt.Println("Usage: p2pfs fetch <manifest-cid>")
+		fmt.Println("Usage: tinytorrent fetch <manifest-cid>")
 		os.Exit(1)
 	}
 	cid := fs.Arg(0)
@@ -174,11 +174,11 @@ func runFetch(args []string) {
 func runList(args []string) {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 	peerAddr := fs.String("peer", "", "Target peer multiaddr")
-	rpcOpt := fs.String("rpc", "/tmp/p2pfs.sock", "RPC Unix socket path")
+	rpcOpt := fs.String("rpc", "/tmp/tinytorrent.sock", "RPC Unix socket path")
 	fs.Parse(args)
 
 	if *peerAddr == "" {
-		fmt.Println("Usage: p2pfs list --peer <multiaddr>")
+		fmt.Println("Usage: tinytorrent list --peer <multiaddr>")
 		os.Exit(1)
 	}
 

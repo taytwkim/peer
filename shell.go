@@ -18,7 +18,7 @@ import (
 )
 
 // This file implements an interactive shell used to play around with a p2p daemon
-// To start a node in interactive mode, run ./p2pfs shell ... instead of ./p2pfs daemon ...
+// To start a node in interactive mode, run ./tinytorrent shell ... instead of ./tinytorrent daemon ...
 
 const (
 	colorReset  = "\033[0m"
@@ -116,7 +116,7 @@ func runShell(args []string) {
 }
 
 func (s *shellSession) prompt() string {
-	label := "p2pfs"
+	label := "tinytorrent"
 	if s.name != "" {
 		label = s.name
 	}

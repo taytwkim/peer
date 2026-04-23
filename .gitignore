@@ -21,8 +21,8 @@ go.work.sum
 # env file
 .env
 
-# p2pfs specific ignores
-p2pfs
+# specific ignores
+tinytorrent
 .gocache/
 files_to_serve/
 peerA_export/

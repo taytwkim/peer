@@ -1,4 +1,4 @@
-module p2pfs
+module tinytorrent
 
 go 1.25
 

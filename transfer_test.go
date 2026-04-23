@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"io"
 	"testing"
+
+	"github.com/libp2p/go-libp2p/core/peer"
 )
 
 func TestTransferResponseHeaderDoesNotLeakDelimiterIntoBody(t *testing.T) {
@@ -34,5 +36,23 @@ func TestTransferResponseHeaderDoesNotLeakDelimiterIntoBody(t *testing.T) {
 	}
 	if !bytes.Equal(got, body) {
 		t.Fatalf("body = %q, want %q", got, body)
+	}
+}
+
+func TestFilterSelfProviderCandidates(t *testing.T) {
+	self := peer.ID("self")
+	other := peer.ID("other")
+	providers := []peer.AddrInfo{
+		{ID: self},
+		{ID: other},
+		{ID: self},
+	}
+
+	got := filterSelfProviderCandidates(providers, self)
+	if len(got) != 1 {
+		t.Fatalf("filtered providers = %v, want only other provider", got)
+	}
+	if got[0].ID != other {
+		t.Fatalf("filtered provider = %s, want %s", got[0].ID, other)
 	}
 }

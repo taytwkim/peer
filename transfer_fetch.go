@@ -326,6 +326,7 @@ func (n *Node) findPeersWhoHasManifest(manifestCID string) ([]peer.AddrInfo, err
 	if err != nil {
 		return nil, fmt.Errorf("failed to query DHT swarm participants: %w", err)
 	}
+	providers = filterSelfProviderCandidates(providers, n.selfPeerID())
 
 	var participants []peer.AddrInfo
 	for _, candidate := range providers {
@@ -451,6 +452,7 @@ func (n *Node) choosePeerForManifest(manifestCID string) (peer.ID, peer.AddrInfo
 	if err != nil {
 		return "", peer.AddrInfo{}, fmt.Errorf("failed to query DHT swarm participants: %w", err)
 	}
+	providers = filterSelfProviderCandidates(providers, n.selfPeerID())
 	if len(providers) == 0 {
 		return "", peer.AddrInfo{}, errors.New("no swarm participants known for this manifest. Use 'whohas' first")
 	}
@@ -474,6 +476,28 @@ func (n *Node) choosePeerForManifest(manifestCID string) (peer.ID, peer.AddrInfo
 		return candidate.ID, candidate, nil
 	}
 	return "", peer.AddrInfo{}, errors.New("no live swarm participants confirmed for this manifest")
+}
+
+func (n *Node) selfPeerID() peer.ID {
+	if n == nil || n.Host == nil {
+		return ""
+	}
+	return n.Host.ID()
+}
+
+func filterSelfProviderCandidates(providers []peer.AddrInfo, self peer.ID) []peer.AddrInfo {
+	if self == "" {
+		return providers
+	}
+
+	filtered := providers[:0]
+	for _, provider := range providers {
+		if provider.ID == self {
+			continue
+		}
+		filtered = append(filtered, provider)
+	}
+	return filtered
 }
 
 // safeDownloadFilename picks a safe local filename for the reconstructed file.

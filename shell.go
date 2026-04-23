@@ -33,6 +33,7 @@ type shellSession struct {
 	aliases map[string]string
 	name    string
 	rl      *readline.Instance
+	output  io.Writer
 	logs    []string
 	logMu   sync.Mutex
 }
@@ -172,6 +173,11 @@ func (s *shellSession) runCommand(line string) error {
 			fmt.Printf("    size:     %d bytes\n", f.Manifest.FileSize)
 			fmt.Printf("    pieces:   %d\n", len(f.Manifest.Pieces))
 		}
+	case "cat":
+		if len(args) != 2 {
+			return fmt.Errorf("usage: cat <filename>")
+		}
+		return s.runCatCommand(args[1])
 	case "whohas":
 		if len(args) != 2 {
 			return fmt.Errorf("usage: whohas <manifest-cid>")
@@ -273,23 +279,57 @@ func (s *shellSession) aliasLabel(value string) string {
 	return ""
 }
 
+func (s *shellSession) stdout() io.Writer {
+	if s.output != nil {
+		return s.output
+	}
+	if s.rl != nil {
+		return s.rl.Stdout()
+	}
+	return io.Discard
+}
+
 func (s *shellSession) printInfo(format string, args ...any) {
-	fmt.Fprintf(s.rl.Stdout(), colorInfo+format+colorReset+"\n", args...)
+	fmt.Fprintf(s.stdout(), colorInfo+format+colorReset+"\n", args...)
 }
 
 func (s *shellSession) printWarn(format string, args ...any) {
-	fmt.Fprintf(s.rl.Stdout(), colorWarn+format+colorReset+"\n", args...)
+	fmt.Fprintf(s.stdout(), colorWarn+format+colorReset+"\n", args...)
 }
 
 func (s *shellSession) printError(format string, args ...any) {
-	fmt.Fprintf(s.rl.Stdout(), colorError+format+colorReset+"\n", args...)
+	fmt.Fprintf(s.stdout(), colorError+format+colorReset+"\n", args...)
 }
 
 func (s *shellSession) runFetch(cid string) error {
 	status := func(format string, args ...any) {
-		fmt.Fprintf(s.rl.Stdout(), colorInfo+format+colorReset+"\n", args...)
+		fmt.Fprintf(s.stdout(), colorInfo+format+colorReset+"\n", args...)
 	}
 	return s.node.doFetchWithStatus(cid, status)
+}
+
+func (s *shellSession) runCatCommand(filename string) error {
+	if unquoted, err := strconv.Unquote(filename); err == nil {
+		filename = unquoted
+	}
+	if filename == "" {
+		return fmt.Errorf("usage: cat <filename>")
+	}
+	if strings.Contains(filename, "/") || strings.Contains(filename, "\\") {
+		return fmt.Errorf("filename must stay within export_dir")
+	}
+
+	path := filepath.Join(s.node.ExportDir, filename)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprint(s.stdout(), string(data))
+	if len(data) == 0 || data[len(data)-1] != '\n' {
+		fmt.Fprintln(s.stdout())
+	}
+	return nil
 }
 
 func (s *shellSession) runLogCommand(args []string) error {
@@ -318,7 +358,7 @@ func (s *shellSession) runLogCommand(args []string) error {
 
 	fmt.Println("Buffered logs:")
 	for _, entry := range logs {
-		fmt.Fprintln(s.rl.Stdout(), entry)
+		fmt.Fprintln(s.stdout(), entry)
 	}
 	return nil
 }
@@ -457,6 +497,7 @@ func printShellHelp() {
 	fmt.Println("  alias <name> <target>        Save a short alias for a peer ID or multiaddr")
 	fmt.Println("  aliases                      Show configured aliases")
 	fmt.Println("  unalias <name>               Remove an alias")
+	fmt.Println("  cat <filename>               Print a file from export_dir")
 	fmt.Println("  echo <text> > <filename>     Write a file into export_dir and rescan")
 	fmt.Println("  dump <bytes> > <filename>    Write N random printable bytes and rescan")
 	fmt.Println("  rescan                       Rescan export_dir immediately")

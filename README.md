@@ -1,6 +1,14 @@
 # TinyTorrent
 
-A small functional prototype of a P2P file sharing system that implements the core ideas of BitTorrent.
+A small prototype of a P2P file sharing system that implements the core ideas of BitTorrent.
+
+## Overview
+
+* Files chunked and downloaded in smaller pieces.
+* Kademlia DHT integration for peer (provider) discovery.
+* Piece and provider selection layers that download rarest pieces first from peers with best observed download rates.
+* Incentivization based on choking.
+* Hashing for file integrity.
 
 ## Getting Started
 
@@ -61,6 +69,8 @@ To join an existing network, start another shell with `--bootstrap` pointing at 
 - `log clear`: Clear buffered background logs.
 - `clear`: Clear the terminal screen.
 - `exit`: Quit the interactive shell.
+
+---
 
 ### Mode 2: Control Over RPC
 

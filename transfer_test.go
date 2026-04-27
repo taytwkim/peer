@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"math"
+	"math/rand"
 	"testing"
 	"time"
 
@@ -206,6 +207,8 @@ func TestReevaluateManifestChokingUsesOptimisticSlot(t *testing.T) {
 		cancel:            cancel,
 		DownloadState:     map[string]*FileDownloadState{manifestCID: {ManifestCID: manifestCID}},
 		ManifestPeerState: make(map[string]map[peer.ID]*PeerState),
+		OptimisticPeers:   make(map[string]peer.ID),
+		RechokeRounds:     make(map[string]int),
 	}
 	node.ManifestPeerState[manifestCID] = map[peer.ID]*PeerState{
 		peer.ID("peer-a"): {DownloadRate: 100},
@@ -244,5 +247,64 @@ func TestReevaluateManifestChokingUsesOptimisticSlot(t *testing.T) {
 	}
 	if optimisticPeer != peer.ID("peer-d") && optimisticPeer != peer.ID("peer-e") {
 		t.Fatalf("optimistic peer = %s, want one of the remaining non-regular peers", optimisticPeer)
+	}
+}
+
+// Verifies that we still reevaluate every round, but we only rotate the
+// optimistic peer every third reevaluation.
+func TestOptimisticUnchokeRotatesEveryThirdReevaluation(t *testing.T) {
+	rand.Seed(1)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	manifestCID := "manifest-1"
+	now := time.Now()
+	node := &Node{
+		ctx:               ctx,
+		cancel:            cancel,
+		DownloadState:     map[string]*FileDownloadState{manifestCID: {ManifestCID: manifestCID}},
+		ManifestPeerState: make(map[string]map[peer.ID]*PeerState),
+		OptimisticPeers:   make(map[string]peer.ID),
+		RechokeRounds:     make(map[string]int),
+	}
+	node.ManifestPeerState[manifestCID] = map[peer.ID]*PeerState{
+		peer.ID("peer-a"): {DownloadRate: 100},
+		peer.ID("peer-b"): {DownloadRate: 90},
+		peer.ID("peer-c"): {DownloadRate: 80},
+		peer.ID("peer-d"): {DownloadRate: 70},
+		peer.ID("peer-e"): {DownloadRate: 60},
+		peer.ID("peer-f"): {DownloadRate: 50},
+	}
+
+	node.stateLock.Lock()
+	node.reevaluateManifestChokingForLocked(manifestCID, now)
+	first := node.OptimisticPeers[manifestCID]
+	node.reevaluateManifestChokingForLocked(manifestCID, now.Add(10*time.Second))
+	second := node.OptimisticPeers[manifestCID]
+	node.reevaluateManifestChokingForLocked(manifestCID, now.Add(20*time.Second))
+	third := node.OptimisticPeers[manifestCID]
+	node.reevaluateManifestChokingForLocked(manifestCID, now.Add(30*time.Second))
+	fourth := node.OptimisticPeers[manifestCID]
+	rounds := node.RechokeRounds[manifestCID]
+	node.stateLock.Unlock()
+
+	if first == "" {
+		t.Fatal("first optimistic peer was not chosen")
+	}
+	if second != first {
+		t.Fatalf("second optimistic peer = %s, want same as first %s", second, first)
+	}
+	if third != first {
+		t.Fatalf("third optimistic peer = %s, want same as first %s", third, first)
+	}
+	if fourth == "" {
+		t.Fatal("fourth optimistic peer was not chosen")
+	}
+	if fourth == first {
+		t.Fatalf("fourth optimistic peer = %s, want a different peer after rotation", fourth)
+	}
+	if rounds != 4 {
+		t.Fatalf("rechoke rounds = %d, want 4", rounds)
 	}
 }

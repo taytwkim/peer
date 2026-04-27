@@ -106,6 +106,8 @@ type Node struct {
 	CompleteFiles     map[string]CompleteFile
 	DownloadState     map[string]*FileDownloadState
 	ManifestPeerState map[string]map[peer.ID]*PeerState // manifestCID -> peerID -> per-manifest peer state
+	OptimisticPeers   map[string]peer.ID                // manifestCID -> current optimistic unchoke peer
+	RechokeRounds     map[string]int                    // manifestCID -> reevaluation count for optimistic rotation
 	ServedObjects     map[string]LocalObjectRecord      // all local objects this node can serve, keyed by CID.
 	stateLock         sync.RWMutex                      // protects CompleteFiles, DownloadState, and ServedObjects.
 	DHT               DHTNode                           // Kademlia DHT used for provider registration and lookup.
@@ -136,6 +138,8 @@ func NewNode(listenAddr, exportDir, rpcSocket string, bootstrapAddrs []string) (
 		CompleteFiles:     make(map[string]CompleteFile),
 		DownloadState:     make(map[string]*FileDownloadState),
 		ManifestPeerState: make(map[string]map[peer.ID]*PeerState),
+		OptimisticPeers:   make(map[string]peer.ID),
+		RechokeRounds:     make(map[string]int),
 		ServedObjects:     make(map[string]LocalObjectRecord),
 		ProvidedCIDs:      make(map[string]struct{}),
 	}

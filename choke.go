@@ -12,7 +12,12 @@ const (
 	// chokeReevaluationInterval currently sets two related timers:
 	// 1. how often we recompute the manifest's unchoked set, and
 	// 2. cooldown for a peer after it chokes one of our piece requests.
-	chokeReevaluationInterval   = 30 * time.Second
+	chokeReevaluationInterval = 10 * time.Second
+
+	// Rotates optimistic unchoke every third reevaluation:
+	// reevaluate at 10s, 20s, 30s, then pick a new optimistic peer.
+	optimisticUnchokeRotationRounds = 3
+
 	maxUnchokedPeersPerManifest = 4
 	optimisticUnchokeSlots      = 1
 )
@@ -110,6 +115,11 @@ func (n *Node) reevaluateManifestChokingForLocked(manifestCID string, now time.T
 		peerState.Optimistic = false
 	}
 
+	// Keep a simple reevaluation counter per manifest so we can hold the same
+	// optimistic peer steady for three rounds before rotating it.
+	n.RechokeRounds[manifestCID]++
+	rechokeRound := n.RechokeRounds[manifestCID]
+
 	regularSlots := maxUnchokedPeersPerManifest - optimisticUnchokeSlots
 	if regularSlots < 0 {
 		regularSlots = 0
@@ -133,13 +143,47 @@ func (n *Node) reevaluateManifestChokingForLocked(manifestCID string, now time.T
 			remaining = append(remaining, peerID)
 		}
 		if len(remaining) > 0 {
-			peerID := remaining[rand.Intn(len(remaining))]
+			peerID := n.chooseOptimisticPeer(manifestCID, remaining, rechokeRound)
 			peerState := peers[peerID]
 			peerState.Choked = false
 			peerState.Optimistic = true
 			peerState.LastUnchoke = now
+			n.OptimisticPeers[manifestCID] = peerID
+		} else {
+			delete(n.OptimisticPeers, manifestCID)
 		}
 	}
+}
+
+// chooseOptimisticPeer keeps the current optimistic peer until the third
+// reevaluation round, unless that peer is no longer eligible for the extra slot.
+func (n *Node) chooseOptimisticPeer(manifestCID string, remaining []peer.ID, rechokeRound int) peer.ID {
+	current := n.OptimisticPeers[manifestCID]
+	shouldRotate := rechokeRound == 1 || rechokeRound%optimisticUnchokeRotationRounds == 1
+
+	if !shouldRotate {
+		for _, peerID := range remaining {
+			if peerID == current {
+				return peerID
+			}
+		}
+	}
+
+	// On a rotation round, try to pick someone new when we have a choice.
+	if len(remaining) > 1 {
+		candidates := make([]peer.ID, 0, len(remaining))
+		for _, peerID := range remaining {
+			if peerID == current {
+				continue
+			}
+			candidates = append(candidates, peerID)
+		}
+		if len(candidates) > 0 {
+			return candidates[rand.Intn(len(candidates))]
+		}
+	}
+
+	return remaining[rand.Intn(len(remaining))]
 }
 
 // rankPeersForUnchoking orders known peers for one manifest by the metric that

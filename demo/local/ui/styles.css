@@ -45,6 +45,16 @@ code {
   padding: 2rem 0 3rem;
 }
 
+.page-title {
+  margin-bottom: 1rem;
+}
+
+.page-title h1 {
+  margin: 0;
+  font-size: clamp(1.8rem, 3vw, 2.4rem);
+  line-height: 1.05;
+}
+
 .hero,
 .panel,
 .peer-card {

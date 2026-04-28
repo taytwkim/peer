@@ -3,7 +3,7 @@
 # local_demo.sh - A script to set up, run, and clean the local P2P file sharing demo using daemon + RPC commands.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 BINARY="$REPO_ROOT/tinytorrent"
 DEMO_TEXT_SOURCE="$REPO_ROOT/demo/local/alice.txt"
 PEER_A_EXPORT="$REPO_ROOT/peerA_export"

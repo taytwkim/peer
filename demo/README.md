@@ -5,6 +5,7 @@ This directory contains demo assets.
 ## Local Demo
 
 To run the local demo (which spins up Peer A, Peer B, and Peer C, and generates a test `foo.txt` file):
+
 ```bash
 # run from project root
 ./demo/local/local_demo.sh start
@@ -24,6 +25,12 @@ To clean up the spawned log files, temp socket files, `export` directories, and 
 ```bash
 ./demo/local/local_demo.sh clean
 ```
+
+### UI
+
+After running `./demo/local/local_demo.sh start`, you can also navigate the demo through a UI.
+
+Run `./tinytorrent` dashboard to start the dashboard HTTP server.
 
 ## GCP Cross-VM Demo
 

@@ -4,18 +4,16 @@ A P2P file sharing system that implements the core ideas of BitTorrent.
 
 ## Overview
 
-* **Chunked Transfers**: Files are chunked into smaller pieces and downloaded concurrently.
-* **Peer Discovery**: Kademlia DHT integration allows peers to discover the swarm providing a requested file.
+* **Chunked Transfers**: Files are chunked into smaller pieces and downloaded incrementally and concurrently.
+* **Decentralized Peer Discovery**: Kademlia DHT integration allows peers to discover the swarm participating in the requested file.
 * **Download Scheduling**: Rarest-first piece selection improves file availability.
 * **Provider Selection**: Among available providers, choose one with the best observed download rate.
-* **Choking-Based Incentives**: Peers limit uploads through choking and drives fair resource allocation.
+* **Choking-Based Incentives**: Peers refuse uploads via choking and drives tit-for-tat resource allocation.
 * **File Integrity**: Hashing detects corrupted file pieces.
 
 ## Demo
 
 See `demo/` for a guided demo of the system in action.
-
-![Demo UI](./img/demo.png)
 
 ## Usage
 
@@ -109,19 +107,16 @@ If the daemon is using the default socket at `/tmp/tinytorrent.sock`, the comman
 
 ```bash
 ./tinytorrent whohas <MANIFEST_CID>
-# or: ./tinytorrent whohas --rpc /tmp/custom.sock <MANIFEST_CID>
 ```
 
 - `fetch`: Tell the daemon to download a file by manifest CID into its local `export_dir`.
 
 ```bash
 ./tinytorrent fetch <MANIFEST_CID>
-# or: ./tinytorrent fetch --rpc /tmp/custom.sock <MANIFEST_CID>
 ```
 
 - `list`: Connect to a remote peer explicitly and use the Index protocol to verify what they are serving, including filename, CID, and size.
 
 ```bash
 ./tinytorrent list --peer <REMOTE_MULTIADDR>
-# or: ./tinytorrent list --rpc /tmp/custom.sock --peer <REMOTE_MULTIADDR>
 ```
